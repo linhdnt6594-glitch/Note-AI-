@@ -1,0 +1,22 @@
+{
+  "name": "HoloNotes AI",
+  "short_name": "Holo",
+  "theme_color": "#FFDEE9",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/index.html",
+  "icons": [
+    {
+      "src": "hologram_note.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "hologram_note.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HoloNotes AI - V6 Firebase Immortal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://code.responsivevoice.org/responsivevoice.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- PWA Config -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#FFDEE9">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').then(reg => {
+            console.log('SW cắm rễ!', reg.scope);
+          }).catch(err => {
+            console.log('SW chối bỏ!', err);
+          });
+        });
+      }
+    </script>
+
+    <style>
+        :root {
+            --hologram-pink: #FFDEE9; --hologram-mint: #B5FFFC; --hologram-purple: #DCD0FF;
+            --glass-bg: rgba(255, 255, 255, 0.45); --glass-border: rgba(255, 255, 255, 0.6);
+            --text-main: #2D3748; --text-secondary: #718096; --shadow-glass: 0 16px 40px rgba(0, 0, 0, 0.08);
+            --border-radius-xl: 32px; --border-radius-lg: 24px; --accent: #6B4EFF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+
+        body {
+            background: linear-gradient(135deg, var(--hologram-pink) 0%, var(--hologram-purple) 50%, var(--hologram-mint) 100%);
+            background-size: 200% 200%; animation: holoShift 10s ease infinite; color: var(--text-main); min-height: 100vh;
+            display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative;
+        }
+
+        @keyframes holoShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+        body::before, body::after { content: ''; position: absolute; border-radius: 50%; filter: blur(60px); z-index: 0; }
+        body::before { width: 300px; height: 300px; background: rgba(255, 255, 255, 0.6); top: 20%; left: 10%; animation: float 8s ease-in-out infinite alternate; }
+        body::after { width: 400px; height: 400px; background: rgba(181, 255, 252, 0.5); bottom: -10%; right: -5%; animation: float 12s ease-in-out infinite alternate-reverse; }
+
+        @keyframes float { 0% { transform: translateY(0px) scale(1); } 100% { transform: translateY(-40px) scale(1.1); } }
+
+        .app-container {
+            position: relative; z-index: 1; width: 100%; max-width: 440px; height: 90vh;
+            background: rgba(255, 255, 255, 0.3); backdrop-filter: blur(20px); border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-xl); display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: var(--shadow-glass), inset 0 2px 5px rgba(255,255,255,0.8);
+        }
+
+        /* LANDING ANIMATION */
+        .landing-screen {
+            position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; transition: all 0.8s cubic-bezier(0.86, 0, 0.07, 1); background: linear-gradient(135deg, rgba(255,222,233,0.8), rgba(181,255,252,0.8)); backdrop-filter: blur(15px);
+        }
+        .landing-screen.hide { opacity: 0; pointer-events: none; transform: translateY(-100%); filter: blur(10px); }
+        .landing-text { font-family: 'Quicksand', sans-serif; font-size: 38px; font-weight: 700; text-align: center; line-height: 1.3; color: #2D3748; mix-blend-mode: multiply; opacity: 0.8; margin-bottom: 24px; padding: 0 20px; transition: all 0.3s ease; }
+        .hero-image { width: 320px; height: auto; margin-bottom: 40px; filter: drop-shadow(0 30px 40px rgba(0,0,0,0.15)); animation: float 6s ease-in-out infinite alternate; }
+        .large-mic-wrapper { position: relative; margin-top: 20px; cursor: pointer; }
+        .large-mic-wrapper::before { content: ''; position: absolute; inset: -30px; border-radius: 50%; background: linear-gradient(135deg, #FFDEE9, #B5FFFC); z-index: -1; transition: all 0.3s; }
+        .big-mic-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: rgba(255,255,255,0.9); color: var(--accent); font-size: 36px; display: flex; justify-content: center; align-items: center; box-shadow: 0 10px 25px rgba(107, 78, 255, 0.2); pointer-events: none; transition: all 0.3s ease; }
+        
+        .soundwaves { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); gap: 8px; z-index: -2; }
+        .wave { width: 6px; height: 10px; background: #6B4EFF; border-radius: 10px; animation: bounceWave 0.6s infinite alternate; }
+        .wave:nth-child(2) { animation-delay: 0.2s; height: 20px; background: #38BDF8; }
+        .wave:nth-child(3) { animation-delay: 0.4s; height: 35px; background: #FF6B6B; }
+        .wave:nth-child(4) { animation-delay: 0.2s; height: 20px; background: #A855F7; }
+        .wave:nth-child(5) { height: 10px; background: #6B4EFF; }
+
+        .large-mic-wrapper.listening .soundwaves { display: flex; }
+        .large-mic-wrapper.listening::before { opacity: 0; }
+        .large-mic-wrapper.listening .big-mic-btn { background: #FF6B6B; color: white; transform: scale(0.9); box-shadow: 0 10px 30px rgba(255, 107, 107, 0.5); }
+        @keyframes bounceWave { 0% { transform: scaleY(0.5); } 100% { transform: scaleY(2.5); } }
+
+        /* WORKSPACE */
+        .workspace-screen { flex: 1; display: flex; flex-direction: column; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity 0.6s ease; position: relative; }
+        .workspace-screen.show { opacity: 1; pointer-events: auto; }
+        .header-ws { padding: 30px 24px 16px; display: flex; flex-direction: column; position: relative; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .date-display { font-size: 28px; font-weight: 800; color: #2D3748; background: linear-gradient(to right, #2D3748, #6B4EFF); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .toggle-mute-btn { background: transparent; border: none; font-size: 28px; color: #718096; cursor: pointer; transition: all 0.3s; }
+        .toggle-mute-btn.muted { color: #EF4444; }
+
+        /* TABS */
+        .view-switcher { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; background: rgba(255,255,255,0.4); padding: 6px; border-radius: 16px; }
+        .view-btn { flex: 1; background: transparent; border: none; padding: 8px 0; font-size: 11px; font-weight: 700; color: #718096; border-radius: 12px; transition: all 0.3s ease; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .view-btn i { font-size: 20px; }
+        .view-btn.active { background: white; color: var(--accent); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+
+        .content-area { flex: 1; overflow-y: auto; padding: 10px 24px 20px; position: relative; scroll-behavior: smooth;}
+        .content-area::-webkit-scrollbar { width: 0px; }
+
+        .note-item-base { background: var(--glass-bg); border: 1px solid rgba(255,255,255,0.8); border-radius: var(--border-radius-lg); box-shadow: 0 8px 24px rgba(0,0,0,0.04); animation: slideUp 0.4s ease-out backwards; transition: all 0.3s ease; backdrop-filter: blur(10px); }
+        .note-item-base.is-done { opacity: 0.5; background: rgba(255,255,255,0.2); }
+        .note-item-base.is-done .note-text { text-decoration: line-through; color: #A0AEC0; }
+
+        .view-timeline { display: flex; flex-direction: column; gap: 16px; position: relative; padding-left: 20px; padding-bottom: 100px; }
+        .view-timeline::before { content: ''; position: absolute; left: 4px; top: 10px; bottom: 10px; width: 3px; background: linear-gradient(to bottom, #A855F7, #38BDF8, #FFDEE9); border-radius: 2px; opacity: 0.7; }
+        .tl-note { padding: 16px; display: flex; align-items: center; gap: 12px; position: relative; }
+        .tl-note::before { content: ''; position: absolute; left: -21px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; background: white; border: 3px solid #38BDF8; border-radius: 50%; box-shadow: 0 0 10px rgba(56,189,248,0.5); z-index: 2; transition: all 0.3s ease; }
+        .tl-note.is-done::before { border-color: #6B4EFF; background: #6B4EFF; }
+
+        .view-bubbles { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start; padding: 20px 0 120px; min-height: 200px; }
+        .bub-note { width: 140px; height: 140px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.9), rgba(255,255,255,0.4) 60%); box-shadow: 0 15px 25px rgba(0,0,0,0.06), inset -5px -5px 20px rgba(255,255,255,0.6), inset 5px 5px 15px rgba(255,255,255,0.4)!important; animation: floatBubble 5s ease-in-out infinite alternate; cursor: pointer; overflow: hidden; flex-shrink: 0; position: relative; border: 1px solid rgba(255,255,255,0.8); backdrop-filter: blur(5px); }
+        .bub-note:nth-child(even) { animation-delay: -2s; animation-duration: 6s; }
+        .bub-note:nth-child(3n) { animation-delay: -1s; animation-duration: 4.5s; }
+        .bub-words { font-size: 14px; font-weight: 600; color: #4A5568; line-height: 1.4; width: 100%; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+        .bub-note.expanded { width: 100%; height: auto; border-radius: var(--border-radius-lg); animation: none !important; padding: 24px; display: flex; flex-direction: row; text-align: left; background: rgba(255,255,255,0.85); box-shadow: 0 15px 30px rgba(0,0,0,0.08)!important; }
+        .bub-note.expanded .bub-words { display: block; overflow: visible; -webkit-line-clamp: unset; }
+        @keyframes floatBubble { 0% { transform: translateY(0px) scale(0.98); } 100% { transform: translateY(-15px) scale(1.02); } }
+        @keyframes popVanish { 0% { transform: scale(1); opacity: 1; filter: brightness(1); } 50% { transform: scale(1.2); filter: brightness(1.5); } 100% { transform: scale(0); opacity: 0; } }
+
+        /* FINANCE DASHBOARD */
+        .view-finance { display: flex; flex-direction: column; gap: 20px; padding-bottom: 120px; }
+        .finance-card { background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); padding: 20px; border-radius: var(--border-radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,0.05); text-align: center; }
+        .fin-total { font-family: 'Quicksand', sans-serif; font-size: 36px; font-weight: 800; color: #FF6B6B; margin: 10px 0; text-shadow: 0 4px 10px rgba(255,107,107,0.2); }
+        .fin-label { font-size: 14px; font-weight: 700; color: #718096; text-transform: uppercase; }
+        .chart-container { background: rgba(255,255,255,0.6); padding: 16px; border-radius: var(--border-radius-lg); }
+        .fin-history { display: flex; flex-direction: column; gap: 10px; }
+        .fin-item { display: flex; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.8); border-radius: 12px; font-weight: 600; font-size: 14px; }
+        .fin-item .amount { color: #EF4444; }
+        .db-status { display:inline-block; font-size: 12px; padding:4px 8px; border-radius: 8px; background: #E2E8F0; color: #4A5568; font-weight: 600; margin-top: 8px;}
+        .db-status.connected { background: #C6F6D5; color: #2F855A; }
+
+        /* VAULT */
+        .view-vault { display: flex; flex-direction: column; gap: 16px; padding: 20px 0 120px; text-align: center; }
+        .vault-shield { font-size: 50px; color: #A855F7; margin-bottom: 0px; }
+        .vault-title { font-size: 20px; font-weight: 800; color: #2D3748; }
+        .vault-desc { font-size: 13px; color: #718096; margin-bottom: 0px;}
+        .vault-input { width: 100%; border: 2px solid rgba(168,85,247,0.3); padding: 12px 16px; border-radius: 16px; background: white; font-family: monospace; outline: none; transition: 0.3s; font-size:12px; }
+        .vault-input:focus { border-color: #6B4EFF; }
+        .vault-btn { background: linear-gradient(135deg, #6B4EFF, #38BDF8); color: white; font-weight: 700; border: none; padding: 14px; border-radius: 16px; cursor: pointer; transition: 0.3s; font-size: 15px;}
+        .vault-btn:hover { box-shadow: 0 10px 20px rgba(107, 78, 255, 0.3); transform: translateY(-2px); }
+
+        .checkbox-wrapper { position: relative; width: 24px; height: 24px; flex-shrink: 0; cursor: pointer; }
+        .checkbox-wrapper input { opacity: 0; position: absolute; cursor: pointer; }
+        .checkmark { position: absolute; inset: 0; background-color: rgba(255,255,255,0.6); border: 2px solid #A0AEC0; border-radius: 8px; transition: all 0.3s ease; }
+        .checkbox-wrapper input:checked ~ .checkmark { background: linear-gradient(135deg, #A855F7, #38BDF8); border-color: transparent; }
+        .checkmark:after { content: ""; position: absolute; display: none; left: 6px; top: 3px; width: 5px; height: 10px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        .checkbox-wrapper input:checked ~ .checkmark:after { display: block; }
+        .note-content-wrapper { flex: 1; display: flex; flex-direction: column; }
+        .note-text { font-size: 15px; line-height: 1.5; color: #2D3748; font-weight: 600; }
+        .delete-btn { background: transparent; color: #CBD5E1; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        .delete-btn:hover { color: #EF4444; background: rgba(239, 68, 68, 0.1); }
+
+        .fab-btn { position: absolute; bottom: 100px; right: 24px; width: 60px; height: 60px; border-radius: 50%; border: none; background: linear-gradient(135deg, #FF6B6B, #6B4EFF, #38BDF8); color: white; font-size: 28px; cursor: pointer; box-shadow: 0 12px 25px rgba(107, 78, 255, 0.4); z-index: 50; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; justify-content: center; align-items: center; }
+        .fab-btn:hover { transform: scale(1.15) rotate(90deg); box-shadow: 0 15px 35px rgba(107, 78, 255, 0.5); }
+        .input-bar { padding: 16px 24px 24px; display: flex; gap: 12px; align-items: center; position: relative; z-index: 60; background: linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0)); }
+        .sm-mic-btn { background: linear-gradient(135deg, #6B4EFF, #38BDF8); color: white; border: none; width: 52px; height: 52px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 8px 20px rgba(107, 78, 255, 0.3); transition: all 0.3s ease; flex-shrink: 0; }
+        .sm-mic-btn.listening { background: #EF4444; animation: pulseMicSmall 1s infinite alternate; }
+        .input-wrapper { flex: 1; position: relative; display: flex; align-items: center; }
+        .text-input { width: 100%; background: rgba(255,255,255,0.85); border: 2px solid rgba(255,255,255,1); color: #2D3748; padding: 14px 44px 14px 20px; border-radius: 24px; font-size: 15px; outline: none; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.03); backdrop-filter: blur(10px); }
+        .text-input:focus { border-color: #A855F7; background: #FFFFFF; }
+        .send-btn { position: absolute; right: 6px; background: transparent; border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #A855F7; font-size: 24px; cursor: pointer; transition: all 0.2s; }
+
+        @keyframes slideUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseMicSmall { from { transform: scale(1); } to { transform: scale(1.1); box-shadow: 0 10px 20px rgba(239,68,68,0.5); } }
+        
+        .toast-notify { position: absolute; top: 24px; left: 50%; transform: translateX(-50%) translateY(-100px); background: rgba(255,255,255,0.95); backdrop-filter: blur(15px); color: #2D3748; padding: 12px 24px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.5); font-size: 14px; font-weight: 600; opacity: 0; transition: all 0.4s ease; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: flex; gap: 8px; align-items: center; margin-bottom: 10px; max-width: 90%; }
+        .toast-notify.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .empty-state { text-align: center; color: #A0AEC0; margin-top: 40px; font-weight: 500; font-size: 15px; }
+
+        .chat-bubble-ai { position: absolute; top: 80px; right: 24px; left: 24px; background: white; border-radius: 20px 20px 4px 20px; padding: 16px; color: #4A5568; font-weight: 600; box-shadow: 0 10px 25px rgba(107, 78, 255, 0.15); border: 2px solid #DCD0FF; transform: scale(0); transform-origin: top right; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 200; font-family: 'Quicksand'; font-size: 15px; }
+        .chat-bubble-ai.show { transform: scale(1); }
+        .loading-sp { margin-top: 20px; color: #A855F7; font-weight: 600; display: none;}
+        .loading-sp.show { display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div id="toast" class="toast-notify"><i class="ph-fill ph-check-circle" style="color: #6B4EFF; font-size:20px;"></i> <span id="toastMsg">Thành công</span></div>
+        <div id="chatBubble" class="chat-bubble-ai"></div>
+        
+        <div class="landing-screen" id="landingScreen" onclick="window.enterWorkspaceManual(event)">
+            <h1 class="landing-text" id="landingText">Hi!<br>Nay tiêu gì hóng coi?</h1>
+            <img src="hologram_note.png" alt="Hologram Note 3D" class="hero-image" id="heroImage" onerror="this.style.display='none'">
+            <div class="loading-sp" id="landingLoading">AI Tâm Linh đang hoạt động...</div>
+
+            <div class="large-mic-wrapper" id="homeMicWrapper" onclick="window.startHomeListening()">
+                <div class="soundwaves"><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div></div>
+                <button class="big-mic-btn" id="homeMicBtn"><i class="ph-fill ph-microphone"></i></button>
+            </div>
+            <p style="margin-top: 20px; color: #718096; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;" id="landingHint">NHẤN MẠNH VÀO NÓI ĐI</p>
+        </div>
+
+        <div class="workspace-screen" id="workspaceScreen">
+            <div class="header-ws">
+                <div class="header-top">
+                    <div class="date-display" id="dateDisplay">01 Tháng 1, 2024</div>
+                    <button class="toggle-mute-btn" id="muteToggleBtn" onclick="window.toggleMute()"><i class="ph-fill ph-speaker-high" id="speakerIcon"></i></button>
+                </div>
+                
+                <div class="view-switcher">
+                    <button class="view-btn active" onclick="window.switchView('timeline')" id="btn-timeline"><i class="ph-fill ph-clock"></i> Timeline</button>
+                    <button class="view-btn" onclick="window.switchView('bubbles')" id="btn-bubbles"><i class="ph-fill ph-circles-three"></i> Bubbles</button>
+                    <button class="view-btn" onclick="window.switchView('finance')" id="btn-finance"><i class="ph-fill ph-wallet"></i> Finance</button>
+                    <button class="view-btn" onclick="window.switchView('vault')" id="btn-vault"><i class="ph-fill ph-lock-key"></i> Vault</button>
+                </div>
+            </div>
+
+            <div class="content-area" id="contentArea"></div>
+
+            <button class="fab-btn" id="fabBtn" onclick="window.triggerHaptic(); document.getElementById('textInput').focus()">
+                <i class="ph-bold ph-plus"></i>
+            </button>
+
+            <div class="input-bar" id="inputBar">
+                <button class="sm-mic-btn" id="micBtn" title="Nhấn để nói"><i class="ph-fill ph-microphone"></i></button>
+                <div class="input-wrapper">
+                    <input type="text" class="text-input" id="textInput" placeholder="Nhập câu lệnh cho AI..." autocomplete="off">
+                    <button class="send-btn" id="sendBtn" title="Gửi"><i class="ph-bold ph-paper-plane-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP SCRIPT: FIREBASE V9 MODULE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        let db = null;
+        let isDbConnected = false;
+
+        // FETCH FIREBASE CONFIG FROM VAULT
+        const fbStr = localStorage.getItem('firebase_config');
+        if (fbStr) {
+            try {
+                const app = initializeApp(JSON.parse(fbStr));
+                db = getFirestore(app);
+                isDbConnected = true;
+                
+                onSnapshot(collection(db, "notes"), (snap) => {
+                    window.myNotesList = snap.docs.map(d => ({ fbId: d.id, ...d.data() }));
+                    if(window.currentView !== 'finance' && window.currentView !== 'vault') window.renderNotes();
+                });
+                
+                onSnapshot(collection(db, "finances"), (snap) => {
+                    window.myFinanceList = snap.docs.map(d => ({ fbId: d.id, ...d.data() }));
+                    // Tự động quét DB tính lại Total_Expense chuẩn 100%
+                    window.Total_Expense = window.myFinanceList.reduce((acc, curr) => acc + curr.amount, 0);
+                    if(window.currentView === 'finance') window.renderFinancePro();
+                });
+
+            } catch(e) { console.error("Lỗi Firebase:", e); }
+        }
+
+        // GLOBALS
+        window.myNotesList = [];
+        window.myFinanceList = [];
+        window.Total_Expense = 0;
+        window.conversationHistory = []; 
+        window.currentView = 'timeline';
+        
+        let isMuted = false;
+        let chartInstance = null; let pieInstance = null;
+        let isHomeFirstTime = true;
+        let isAudioUnlocked = false;
+
+        document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' });
+        const contentArea = document.getElementById('contentArea');
+        const textInput = document.getElementById('textInput');
+        const toast = document.getElementById('toast');
+        const chatBubble = document.getElementById('chatBubble');
+        const micBtn = document.getElementById('micBtn');
+
+        window.triggerHaptic = function() { if(navigator.vibrate) navigator.vibrate(30); }
+
+        function playPopSound() {
+            if (isMuted) return;
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'sine'; osc.frequency.setValueAtTime(600, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+            } catch(e) {}
+        }
+
+        window.speak = function(text) {
+            if (isMuted) {
+                chatBubble.textContent = text; chatBubble.classList.add('show');
+                setTimeout(() => chatBubble.classList.remove('show'), 5000); return;
+            }
+            try { if (window.responsiveVoice) responsiveVoice.speak(text, "Vietnamese Female", {rate: 1.1, pitch: 1.1}); } catch (e) {}
+        }
+
+        window.toggleMute = function() {
+            window.triggerHaptic(); isMuted = !isMuted;
+            const btn = document.getElementById('muteToggleBtn'); const icon = document.getElementById('speakerIcon');
+            if (isMuted) { btn.classList.add('muted'); icon.className = 'ph-fill ph-speaker-slash'; window.showToast("Bật Chế Độ Im Lặng (Chat)"); } 
+            else { btn.classList.remove('muted'); icon.className = 'ph-fill ph-speaker-high'; window.showToast("Đã bật mỏ tiếng ồn"); }
+        }
+
+        async function fetchGeminiAPI(rawPrompt) {
+            const apikey = localStorage.getItem('gemini_api_key');
+            if (!apikey) { window.showToast("Dô Vault cài API KEY dô!"); window.switchView('vault'); return null; }
+
+            const historyStr = window.conversationHistory.join("\n");
+            const noteStr = window.myNotesList.map(n => n.content).join(", ");
+            const finStr = window.myFinanceList.map(f => `${f.item}:${f.amount}`).join(", ");
+
+            const sysPrompt = `Bạn là môt nàng trợ lý ảo giọng nữ miền Nam lầy lội kiêm KẾ TOÁN TRƯỞNG khó tính.
+Lịch sử đàm thoại: [${historyStr}]
+Notes hiện tại: [${noteStr}]
+Ví: [${finStr}]
+
+User vừa nói: "${rawPrompt}"
+
+Luật:
+1. Tách mảng y như cũ.
+2. NẾU USER NÓI MUA SẮM (Ví dụ: mua hết mớ tiền, mua sắm quá tay) MÀ KHÔNG ĐƯA RA ĐƯỢC CON SỐ CHÍNH XÁC (vd 30k, 50k, 1 triệu). 
+=> BẮT BUỘC ĐỂ TRỐNG mọi extracted_finances và extracted_notes, VÀ phất cờ "is_missing_amount": true.
+3. Nếu "is_missing_amount": true, xin hãy soạn reply_speech mắng mỏ đúng câu chốt này: "Mớ tiền là nhiêu cưng? Cho tui con số chính xác để tui còn ghi sổ nha!" (có thể gọt tỉa điệu bộ).
+4. Nhớ rule Duplicate = true nếu trùng sổ!
+
+JSON duy nhất:
+{ "reply_speech": "...", "extracted_notes": [], "extracted_finances": [], "is_duplicate": false, "is_missing_amount": false }`;
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apikey}`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: sysPrompt }] }] })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error ? data.error.message : "API Key sai");
+                let textRes = data.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
+                return JSON.parse(textRes);
+            } catch (err) { 
+                window.showToast("Vô hiệu ❌ " + err.message); 
+                window.speak("Chết chửa, máy chủ Google báo lỗi này sếp ơi: Key bị Vô Hiệu Hoá hoặc sai định dạng.");
+                return null; 
+            }
+        }
+
+        window.processAIInput = async function(text) {
+            if (!text.trim()) return;
+            window.conversationHistory.push("User: " + text);
+            if(window.conversationHistory.length > 5) window.conversationHistory.shift();
+
+            if (!localStorage.getItem('gemini_api_key')) {
+                window.speak("Cưng chưa nạp API Key vô Vault kìa, tui chưa có não sao load nổi ba cái này!");
+                window.showToast("Lỗi: Quên nhập API Key trong Vault rùi!");
+                setTimeout(() => window.switchView('vault'), 3000);
+                // Thoát khỏi Home UI nếu đang mắc kẹt
+                if (isHomeFirstTime) transitionHome(); 
+                return;
+            }
+
+            if(!isHomeFirstTime) window.showToast("Thanh Tra AI đang soát xét...");
+
+            const aiResult = await fetchGeminiAPI(text);
+            if (!aiResult) return;
+
+            // SMART LLM VALIDATION BLOCK
+            if (aiResult.is_missing_amount) {
+                window.speak(aiResult.reply_speech);
+                document.getElementById('textInput').value = '';
+                // Xử lý chuyển trang nếu đang ở Home
+                if (isHomeFirstTime) transitionHome(); 
+                return; // KO THÊM GÌ VÀO DB!
+            }
+
+            if (aiResult.is_duplicate) { window.speak(aiResult.reply_speech); return; }
+
+            // DB SAVING (FIREBASE OR LOCAL)
+            if (aiResult.extracted_notes) {
+                for (let note of aiResult.extracted_notes) {
+                    if (db) await addDoc(collection(db, "notes"), { content: note.content, is_done: false, category: note.category, id: Date.now() });
+                    else window.myNotesList.push({ id: Date.now(), content: note.content, is_done: false, category: note.category });
+                }
+            }
+            if (aiResult.extracted_finances) {
+                for (let fin of aiResult.extracted_finances) {
+                    if (db) await addDoc(collection(db, "finances"), { item: fin.item, amount: Number(fin.amount), date: Date.now(), id: Date.now() });
+                    else window.myFinanceList.push({ id: Date.now() + Math.random(), item: fin.item, amount: Number(fin.amount), date: Date.now() });
+                }
+            }
+
+            window.conversationHistory.push("AI: " + aiResult.reply_speech);
+            window.speak(aiResult.reply_speech);
+            document.getElementById('textInput').value = '';
+            
+            if (isHomeFirstTime) transitionHome();
+            if(!db) {
+                window.Total_Expense = window.myFinanceList.reduce((acc, curr) => acc + curr.amount, 0);
+                if (window.currentView === 'finance') renderFinancePro(); else renderNotes();
+            }
+        }
+
+        function transitionHome() {
+            isHomeFirstTime = false;
+            document.getElementById('landingScreen').classList.add('hide');
+            document.getElementById('workspaceScreen').classList.add('show');
+        }
+
+        window.enterWorkspaceManual = function(event) {
+            // Nếu bấm trúng cái Micro thì nhường quyền cho hàm thu âm
+            if (event.target.closest('#homeMicWrapper')) return;
+            
+            // Xả khóa Audio của Chrome lúc bấm vào nền
+            if (!isAudioUnlocked) { isAudioUnlocked = true; try { responsiveVoice.speak("", "Vietnamese Female"); } catch(e){} }
+            
+            // Vượt thẳng vào Workspace
+            transitionHome();
+            window.triggerHaptic();
+            if (localStorage.getItem('gemini_api_key')) {
+                window.speak("Hé lô, cưng vào đây rành rỗi quá ha, tính ghi sổ nợ hay gì?");
+            }
+        }
+
+        window.saveVaultConfig = function() {
+            const tk = document.getElementById('apiTkInput').value.trim();
+            const fb = document.getElementById('fbConfigInput').value.trim();
+            
+            if (tk.includes('{') || tk.includes('"')) {
+                window.speak("Má ơi! Dán nguyên cái cục cấu hình Firebase vô lấn chiếm cái chỗ nhập Khóa API rồi kìa!");
+                window.showToast("❌ Lỗi: Dán sai chỗ mã API Key");
+                return;
+            }
+
+            localStorage.setItem('gemini_api_key', tk);
+            if (fb !== '') localStorage.setItem('firebase_config', fb);
+            
+            window.speak("Xác nhận đã Lưu. Tui sẽ Load lại web để thử kích hoạt nha Sếp!");
+            setTimeout(() => window.location.reload(), 2500);
+        }
+
+        window.switchView = function(viewName) {
+            window.triggerHaptic(); window.currentView = viewName;
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + viewName).classList.add('active');
+            
+            if (chartInstance) { chartInstance.destroy(); pieInstance.destroy(); }
+            const btnFab = document.getElementById('fabBtn'); const inBar = document.getElementById('inputBar');
+            if (viewName === 'vault') { btnFab.style.display = 'none'; inBar.style.display = 'none'; } 
+            else { btnFab.style.display = 'flex'; inBar.style.display = 'flex'; }
+            renderNotes();
+        }
+
+        // RENDER LOGIC
+        window.renderNotes = function() {
+            contentArea.innerHTML = '';
+            if (window.currentView === 'finance') { window.renderFinancePro(); return; }
+            if (window.currentView === 'vault') { window.renderVault(); return; }
+
+            if (window.myNotesList.length === 0) { contentArea.innerHTML = `<div class="empty-state">Hông có gì luôn á...</div>`; return; }
+
+            let sortedList = [...window.myNotesList].sort((a,b) => a.is_done - b.is_done);
+
+            const buildHTML = (n, xtra) => `
+                <div class="note-item-base ${xtra} ${n.is_done ? 'is-done' : ''}" data-id="${n.id}" onclick="window.expandBubble(this, '${window.currentView}')">
+                    <label class="checkbox-wrapper" onclick="event.stopPropagation()">
+                        <input type="checkbox" onchange="window.toggleNote(${n.id}, event)" ${n.is_done ? 'checked' : ''}>
+                        <span class="checkmark"></span>
+                    </label>
+                    <div class="note-content-wrapper"><div class="note-text bub-words">${n.content}</div></div>
+                    <button class="delete-btn" onclick="event.stopPropagation(); window.deleteNote(${n.id}, this)">
+                        <i class="ph-bold ph-trash" style="font-size: 20px;"></i>
+                    </button>
+                </div>`;
+
+            if (window.currentView === 'timeline') {
+                const wrapper = document.createElement('div'); wrapper.className = 'view-timeline';
+                sortedList.forEach(n => wrapper.innerHTML += buildHTML(n, 'tl-note'));
+                contentArea.appendChild(wrapper);
+            } else if (window.currentView === 'bubbles') {
+                const wrapper = document.createElement('div'); wrapper.className = 'view-bubbles';
+                sortedList.forEach(n => wrapper.innerHTML += buildHTML(n, 'bub-note'));
+                contentArea.appendChild(wrapper);
+            }
+        }
+
+        window.renderFinancePro = function() {
+            let total = window.Total_Expense;
+            contentArea.innerHTML = `
+                <div class="view-finance">
+                    <div class="finance-card">
+                        <div class="fin-label">Tổng Quỹ Khai Báo (Database Server)</div>
+                        <div class="fin-total">${total.toLocaleString('vi-VN')} đ</div>
+                        ${isDbConnected ? '<div class="db-status connected">Đã đồng bộ Firebase Firestore</div>' : '<div class="db-status">Lưu cục bộ Local Data</div>'}
+                    </div>
+                    <div class="chart-container"><canvas id="barChart"></canvas></div>
+                    <div class="chart-container"><canvas id="pieChart"></canvas></div>
+                    <div class="fin-history" id="finHistory"></div>
+                </div>
+            `;
+            let hist = document.getElementById('finHistory');
+            window.myFinanceList.slice().reverse().forEach(item => {
+                hist.innerHTML += `<div class="fin-item"><span>${item.item}</span><span class="amount">-${item.amount.toLocaleString('vi-VN')} đ</span></div>`;
+            });
+
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            chartInstance = new Chart(ctxBar, {
+                type: 'bar', data: { labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'], datasets: [{ label: 'Chi tiêu', data: [0, 120000, 0, total, 0, 0, 0], backgroundColor: '#38BDF8', borderRadius: 8 }] },
+                options: { plugins: { legend: {display: false} }, scales: { y: {beginAtZero: true} } }
+            });
+            const ctxPie = document.getElementById('pieChart').getContext('2d');
+            pieInstance = new Chart(ctxPie, {
+                type: 'doughnut', data: { labels: ['Hóa đơn'], datasets: [{ data: [total||1], backgroundColor: ['#FF6B6B', '#6B4EFF', '#38BDF8'], borderWidth: 0 }] }
+            });
+        }
+
+        window.renderVault = function() {
+            const cTk = localStorage.getItem('gemini_api_key') || "";
+            const cFb = localStorage.getItem('firebase_config') || "";
+            contentArea.innerHTML = `
+                <div class="view-vault">
+                    <i class="ph-duotone ph-shield-check vault-shield"></i>
+                    <div class="vault-title">Hũ Cáp Sạc Database & AI</div>
+                    <input type="password" class="vault-input" id="apiTkInput" value="${cTk}" placeholder="Nhập API Token Google Gemini Pro (LLM)...">
+                    <textarea class="vault-input" id="fbConfigInput" rows="5" placeholder='Dán mảng cấu hình Firebase JSON vô đây: {"apiKey": "AIza...", "projectId": "abc"...}'>${cFb}</textarea>
+                    
+                    <button class="vault-btn" onclick="window.saveVaultConfig()"><i class="ph-bold ph-database"></i> Khởi Động Đồng Bộ Dữ Liệu</button>
+                    <p style="font-size:11px; color: #718096; margin-top:20px;">Ứng dụng sẽ Tải lại (Reload) để nối mây (Cloud) khi bạn bấm lưu.</p>
+                </div>
+            `;
+        }
+
+        window.expandBubble = function(el, view) {
+            if (view !== 'bubbles') return;
+            const isExp = el.classList.contains('expanded');
+            document.querySelectorAll('.bub-note').forEach(e => e.classList.remove('expanded'));
+            if (!isExp) el.classList.add('expanded');
+        }
+
+        window.showToast = function(msg) {
+            toastMsg.textContent = msg; toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // FIREBASE DB ACTIONS 
+        window.toggleNote = async function(id, event) {
+            window.triggerHaptic(); const idx = window.myNotesList.findIndex(n => n.id === id);
+            if (idx > -1) {
+                const n = window.myNotesList[idx];
+                if (db && n.fbId) await updateDoc(doc(db, "notes", n.fbId), { is_done: !n.is_done });
+                else n.is_done = !n.is_done; // Local mode
+                
+                if(!n.is_done === false) { // Vừa tick done
+                    if (window.currentView === 'bubbles' && event) {
+                        try {
+                            const rect = event.target.getBoundingClientRect();
+                            confetti({ particleCount: 60, spread: 70, origin: { x: (rect.left+12)/window.innerWidth, y: (rect.top+12)/window.innerHeight }, colors: ['#FFDEE9'] });
+                            playPopSound(); const dN = event.target.closest('.bub-note'); if(dN) dN.style.animation = 'popVanish 0.5s forwards';
+                        } catch(e) {}
+                    }
+                }
+                if (!db && window.currentView !== 'bubbles') window.renderNotes(); else if(!db) setTimeout(window.renderNotes, 500);
+            }
+        };
+
+        window.deleteNote = async function(id, btn) {
+            window.triggerHaptic(); btn.closest('.note-item-base').style.opacity = '0';
+            const idx = window.myNotesList.findIndex(n => n.id === id);
+            if (idx > -1) {
+                const n = window.myNotesList[idx];
+                if (db && n.fbId) await deleteDoc(doc(db, "notes", n.fbId));
+                else { window.myNotesList.splice(idx, 1); window.renderNotes(); }
+            }
+        };
+
+        // HOME MIC HANDLER
+        let isListening = false;
+        const SpeechRes = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        if (SpeechRes) {
+            recognition = new SpeechRes(); recognition.continuous = false; recognition.lang = 'vi-VN'; recognition.interimResults = false;
+            recognition.onstart = function() { 
+                isListening = true; micBtn.classList.add('listening'); textInput.placeholder = "Đang ráng nghe cưng nói..."; 
+                document.getElementById('homeMicWrapper').classList.add('listening');
+                document.getElementById('landingText').innerHTML = "Đang rình nghe...<br><span style='font-size:20px;color:#6B4EFF'>hót lẹ đi cưng</span>";
+                document.getElementById('heroImage').style.transform = "scale(0.8)";
+            };
+            recognition.onresult = function(e) { 
+                if(isHomeFirstTime) { document.getElementById('landingLoading').classList.add('show'); document.getElementById('landingHint').textContent = "HOLO AI ĐÃ ĐỚP LỆNH..."; }
+                window.processAIInput(e.results[0][0].transcript); 
+            };
+            recognition.onerror = function() { finishListening(); };
+            recognition.onend = function() { 
+                finishListening(); 
+                if(isHomeFirstTime) { document.getElementById('landingText').innerHTML = "Hi!<br>Nay tiêu gì hóng coi?"; document.getElementById('heroImage').style.transform = "scale(1)"; }
+            };
+            function finishListening() { isListening = false; micBtn.classList.remove('listening'); textInput.placeholder = "Nhập đi... đợi sờ tới sáng à..."; document.getElementById('homeMicWrapper').classList.remove('listening'); }
+            micBtn.addEventListener('click', () => { 
+                if (!isAudioUnlocked) { isAudioUnlocked = true; try { responsiveVoice.speak("", "Vietnamese Female"); } catch(e){} }
+                if (!isListening) recognition.start(); else recognition.stop(); 
+            });
+        }
+
+        window.startHomeListening = function() {
+            if (!isAudioUnlocked) { isAudioUnlocked = true; try { responsiveVoice.speak("", "Vietnamese Female"); } catch(e){} }
+            if(recognition && !isListening) recognition.start();
+        }
+
+        document.getElementById('sendBtn').addEventListener('click', () => { window.triggerHaptic(); window.processAIInput(textInput.value); });
+        textInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') window.processAIInput(textInput.value); });
+
+        window.onload = () => window.renderNotes();
+    </script>
+</body>
+</html>
